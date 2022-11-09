@@ -11,10 +11,10 @@ import {
 
 // Color for buttons to choose the background color
 const colors = {
-  black: "#090C08",
-  purple: "#474056",
-  grey: "#8A95A5",
-  green: "#B9C6AE",
+  lightblue: "#3A86FF",
+  orange: "#FB5607",
+  pink: "#FF006E",
+  darkblue: "#8338EC",
 };
 
 import backgroundImage from "../assets/background-image.png";
@@ -41,34 +41,42 @@ export default function Start(props) {
           <Text style={styles.text}>
             Choose Background Color:
           </Text>
-          <View style={styles.colorWrapper}>
+          <View style={styles.colorWrapper} accessibilityRole="radio">
             <TouchableOpacity
               style={[
-                { backgroundColor: colors.black },
+                { backgroundColor: colors.lightblue },
                 styles.colorButton,
               ]}
-              onPress={() => setColor(colors.black)}
+              onPress={() => setColor(colors.lightblue)}
+              accessibilityLabel="Tap me to select background color lightblue"
+              accessibilityHint="By tapping you you choose the background color of the chat screen to be lightblue"
             />
             <TouchableOpacity
               style={[
-                { backgroundColor: colors.purple },
+                { backgroundColor: colors.orange },
                 styles.colorButton,
               ]}
-              onPress={() => setColor(colors.purple)}
+              onPress={() => setColor(colors.orange)}
+              accessibilityLabel="Tap me to select background color orange"
+              accessibilityHint="By tapping you you choose the background color of the chat screen to be orange"
             />
             <TouchableOpacity
               style={[
-                { backgroundColor: colors.grey },
+                { backgroundColor: colors.pink },
                 styles.colorButton,
               ]}
-              onPress={() => setColor(colors.grey)}
+              onPress={() => setColor(colors.pink)}
+              accessibilityLabel="Tap me to select background color pink"
+              accessibilityHint="By tapping you you choose the background color of the chat screen to be pink"
             />
             <TouchableOpacity
               style={[
-                { backgroundColor: colors.green },
+                { backgroundColor: colors.darkblue },
                 styles.colorButton,
               ]}
-              onPress={() => setColor(colors.green)}
+              onPress={() => setColor(colors.darkblue)}
+              accessibilityLabel="Tap me to select background color darkblue"
+              accessibilityHint="By tapping you you choose the background color of the chat screen to be darkblue"
             />
           </View>
           <Pressable
@@ -79,7 +87,10 @@ export default function Start(props) {
                 name: name,
                 color: color,
               })
-            }>
+            }
+            accessibilityRole='button'
+            accessibilityLabel='Press me to go to chat screen'
+            accessibilityHint='By pressing the button you are redirected to the chat screen'>
             <Text style={styles.buttonText}>
               Start Chatting
             </Text>
