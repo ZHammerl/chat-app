@@ -4,7 +4,7 @@ import { getAuth } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 
 // adding firebase credentials in order to connect to firebase
-const firebaseConfig = {
+const config = {
   apiKey: "AIzaSyA5W6qRHJAQd2o-66wUPfwPh5ffebdGt6E",
   authDomain: "chat-app-84415.firebaseapp.com",
   projectId: "chat-app-84415",
@@ -15,13 +15,13 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const firebaseApp = initializeApp(firebaseConfig);
+const app = initializeApp(config);
 
 // Initialize Cloud Firestore and get a reference to the service
-export const db = getFirestore(firebaseApp);
+export const db = getFirestore(app);
 
 // Initialize Firebase Authentication and get a reference to the service
-export const auth = getAuth(firebaseApp);
+export const auth = getAuth(app);
 
 // Initialize Cloud Storage and get a reference to the service
-export const storage = getStorage(firebaseApp);
+export const storage = getStorage(app);

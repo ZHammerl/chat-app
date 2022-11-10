@@ -14,9 +14,10 @@
     "updates": {
       "fallbackToCacheTimeout": 0
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
+    "packagerOpts": {
+      "sourceExts": ["cjs"]
+    },
     "ios": {
       "supportsTablet": true
     },

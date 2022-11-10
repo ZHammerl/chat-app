@@ -14,7 +14,7 @@ const colors = {
   lightblue: "#3A86FF",
   orange: "#FB5607",
   pink: "#FF006E",
-  darkblue: "#8338EC",
+  violet: "#8338EC",
 };
 
 import backgroundImage from "../assets/background-image.png";
@@ -41,7 +41,9 @@ export default function Start(props) {
           <Text style={styles.text}>
             Choose Background Color:
           </Text>
-          <View style={styles.colorWrapper} accessibilityRole="radio">
+          <View
+            style={styles.colorWrapper}
+            accessibilityRole="radio">
             <TouchableOpacity
               style={[
                 { backgroundColor: colors.lightblue },
@@ -71,12 +73,12 @@ export default function Start(props) {
             />
             <TouchableOpacity
               style={[
-                { backgroundColor: colors.darkblue },
+                { backgroundColor: colors.violet },
                 styles.colorButton,
               ]}
-              onPress={() => setColor(colors.darkblue)}
-              accessibilityLabel="Tap me to select background color darkblue"
-              accessibilityHint="By tapping you you choose the background color of the chat screen to be darkblue"
+              onPress={() => setColor(colors.violet)}
+              accessibilityLabel="Tap me to select background color violet"
+              accessibilityHint="By tapping you you choose the background color of the chat screen to be violet"
             />
           </View>
           <Pressable
@@ -88,9 +90,9 @@ export default function Start(props) {
                 color: color,
               })
             }
-            accessibilityRole='button'
-            accessibilityLabel='Press me to go to chat screen'
-            accessibilityHint='By pressing the button you are redirected to the chat screen'>
+            accessibilityRole="button"
+            accessibilityLabel="Press me to go to chat screen"
+            accessibilityHint="By pressing the button you are redirected to the chat screen">
             <Text style={styles.buttonText}>
               Start Chatting
             </Text>
