@@ -1,3 +1,11 @@
+import {
+  onAuthStateChanged,
+  signInAnonymously,
+} from "firebase/auth";
+import {
+  onSnapshot,
+  querySnapshot,
+} from "firebase/firestore";
 import React, {
   useCallback,
   useEffect,
@@ -16,32 +24,60 @@ import {
   Bubble,
 } from "react-native-gifted-chat";
 
+import { db, auth } from "../config/firebase";
+
+const referenceChatmessages = collection(db, "messages");
+
 export default function Chat(props) {
   const [messages, setMessages] = useState([]);
+  const [uid, setUid] = useState("");
+  const [loggedinText, setLoggedinText] = useState(
+    "Please wait. You’re being authenticated"
+  );
 
   /* Receive props name and color from the Start Screen*/
-  const { color } = props.route.params;
-  const { name } = props.route.params;
+  const { color, name } = props.route.params;
 
   useEffect(() => {
-    setMessages([
-      {
-        _id: 2,
-        text: "Hello developer",
-        createdAt: new Date(),
-        user: {
-          _id: 2,
-          name: "React Native",
-          avatar: "https://placeimg.com/140/140/any",
-        },
-      },
-      {
-        _id: 1,
-        text: "You, have entered the chat",
-        createdAt: new Date(),
-        system: true,
-      },
-    ]);
+    const authUnsubscribe = onAuthStateChanged(
+      auth,
+      async (user) => {
+        if (!user) {
+          await signInAnonymously(auth);
+        }
+        setUid(user.uid);
+        setLoggedinText(`${name} is logged in`);
+      }
+    );
+
+    const q = query(
+      referenceChatmessages,
+      where("uid", "==", uid)
+    );
+
+    const unsubscribeMessage = onSnapshot(
+      q,
+      (querySnapshot) => {
+        setMessages([
+          {
+            _id: 2,
+            text: "Hello developer",
+            createdAt: new Date(),
+            user: {
+              _id: 2,
+              name: "React Native",
+              avatar: "https://placeimg.com/140/140/any",
+            },
+          },
+          {
+            _id: 1,
+            text: "You, have entered the chat",
+            createdAt: new Date(),
+            system: true,
+          },
+        ]);
+      }
+    );
   }, []);
 
   const onSend = useCallback((messages = []) => {
