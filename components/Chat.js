@@ -8,6 +8,7 @@ import {
   addDoc,
   where,
   query,
+  orderBy,
 } from "firebase/firestore";
 import "firebase/firestore";
 import React, {
@@ -28,6 +29,8 @@ import {
   Bubble,
 } from "react-native-gifted-chat";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import { db, auth } from "../config/firebase";
 
 const referenceChatmessages = collection(db, "messages");
@@ -42,8 +45,20 @@ export default function Chat(props) {
   /* Receive props name and color from the Start Screen*/
   const { color, name } = props.route.params;
 
+  const getMessages = async () => {
+    let messages = "";
+    try {
+      messages =
+        (await AsyncStorage.getItem("messages")) || [];
+      setMessages({ messages: JSON.parse(messages) });
+    } catch (error) {
+      console.log(error.message);
+    }
+  };
+
   // Get messages from the firestore collection (onSnapshot) and update state
   useEffect(() => {
+    getMessages();
     const authUnsubscribe = onAuthStateChanged(
       auth,
       async (user) => {
@@ -51,14 +66,16 @@ export default function Chat(props) {
           await signInAnonymously(auth);
         }
         setUid(user.uid);
+        console.log(user.uid);
         setLoggedinText(`${name} is logged in`);
       }
     );
 
     const q = query(
       referenceChatmessages,
-      where("uid", "==", uid)
+      orderBy("createdAt", "desc")
     );
+    console.log(q);
 
     const unsubscribeMessage = onSnapshot(
       q,
@@ -80,29 +97,54 @@ export default function Chat(props) {
     };
   }, []);
 
-  useEffect((props) => {
-    setMessages([
-      {
-        text: `${name} entered the chat`,
-        createdAt: new Date(),
-        system: true,
-        _id: name,
-      },
-    ]);
-  }, []);
+  // add last message sent to the Firestore collection "messages"
+  const addMessage = (message) => {
+    const { text } = message;
 
-  // add and append new messages to the firestore
+    if (!text) {
+      return;
+    }
+
+    console.log(message);
+    try {
+      addDoc(referenceChatmessages, message);
+    } catch (e) {
+      console.error("Invalid message object", message);
+      console.error(e);
+    }
+  };
+
+  // save messages to AsyncStorage
+  const saveMessages = async () => {
+    try {
+      await AsyncStorage.setItem(
+        "messages",
+        JSON.stringify(messages)
+      );
+    } catch (error) {
+      console.log(error.message);
+    }
+  };
+
+  const deleteMessages = async () => {
+    try {
+      await AsyncStorage.removeItem("messages");
+      setMessages({
+        messages: [],
+      });
+    } catch (error) {
+      console.log(error.message);
+    }
+  };
+  //Append new messages to the State and add to firestore collection (addMessage) and asyncStorage (saveMessages)
   const onSend = useCallback((messages = []) => {
     setMessages((prevMessages) =>
       GiftedChat.append(prevMessages, messages)
     );
-    const { _id, createdAt, text, user } = messages[0];
-    addDoc(referenceChatmessages, {
-      _id,
-      createdAt,
-      text,
-      user,
-    });
+    // save messages to AsyncStorage
+    saveMessages();
+    //Last message appended to collection
+    addMessage(messages[0]);
   }, []);
 
   const renderBubble = (props) => {
@@ -130,7 +172,8 @@ export default function Chat(props) {
         messages={messages}
         onSend={(messages) => onSend(messages)}
         user={{
-          _id: name,
+          _id: uid,
+          name: name,
           avatar: "https://placeimg.com/140/140/any",
         }}
       />
