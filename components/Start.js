@@ -106,8 +106,6 @@ export default function Start(props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "space-evenly",
-    alignItems: "center",
   },
   backgroundImage: {
     flex: 1,
@@ -130,9 +128,9 @@ const styles = StyleSheet.create({
     height: "44%",
     justifyContent: "space-around",
     padding: "2%",
-    backgroundColor: "white",
     marginBottom: "6%",
     alignItems: "center",
+    backgroundColor: "#FFF",
   },
   input: {
     height: 40,
