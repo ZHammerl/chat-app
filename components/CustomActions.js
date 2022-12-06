@@ -7,16 +7,22 @@ import {
   View,
 } from "react-native";
 import "firebase/firestore";
+import { storage } from "../config/firebase";
+import {
+  getDownloadURL,
+  ref,
+  uploadBytes,
+} from "firebase/storage";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
-import MapView from "react-native-maps";
 import { useActionSheet } from "@expo/react-native-action-sheet";
 
 export default function CustomActions(props) {
   const { showActionSheetWithOptions } = useActionSheet();
 
   // upload image to firebase storage
-  const uploadImage = async (uri) => {
+  // upload images to firebase storage
+  async function uploadImage(uri) {
     const img = await fetch(uri);
     const imgBlob = await img.blob();
 
@@ -24,16 +30,17 @@ export default function CustomActions(props) {
     const imageName =
       imageNameBefore[imageNameBefore.length - 1];
 
-    const ref = firebase
-      .storage()
-      .ref()
-      .child(`images/${imageName}`);
-    const snapshot = await ref.put(imgBlob);
+    const storageRef = ref(storage, `images/${imageName}`);
 
-    blob.close();
-
-    return await snapshot.ref.getDownloadURL();
-  };
+    return uploadBytes(storageRef, imgBlob).then(
+      async (snapshot) => {
+        imgBlob.close();
+        return getDownloadURL(snapshot.ref).then((url) => {
+          return url;
+        });
+      }
+    );
+  }
 
   // pick image from library
   const pickImage = async () => {
@@ -64,6 +71,59 @@ export default function CustomActions(props) {
     }
   };
 
+  // take photo with smartphone camera
+  const takePhoto = async () => {
+    // permission to use camera?
+    const { status } =
+      await ImagePicker.requestCameraPermissionsAsync();
+    try {
+      // launch camera, if permission is granted
+      if (status === "granted") {
+        let result = await ImagePicker.launchCameraAsync({
+          base64: true,
+          quality: 1,
+        }).catch((error) =>
+          console.error("takePhoto permission", error)
+        );
+        // if action is not cancelled, upload and send image
+        if (!result.canceled) {
+          const imgUrl = await uploadImage(result.uri);
+          props.onSend({ image: imgUrl });
+        }
+      }
+    } catch (error) {
+      console.log("takePhoto", error);
+    }
+  };
+
+  // get location of user via GPS
+  const getLoaction = async () => {
+    //permission to access current location?
+    const { status } =
+      await Location.requestForegroundPermissionsAsync();
+    try {
+      // get location, if permission is granted
+      if (status === "granted") {
+        const result =
+          await Location.getCurrentPositionAsync({}).catch(
+            (error) =>
+              console.error("getLocation permission", error)
+          );
+        // if location is found, send it
+        if (result) {
+          props.onSend({
+            location: {
+              longitude: result.coords.longitude,
+              latitude: result.coords.latitude,
+            },
+          });
+        }
+      }
+    } catch (error) {
+      console.error("getLocation", error);
+    }
+  };
+
   const onActionPress = () => {
     const options = [
       "Choose From Library",
@@ -79,12 +139,13 @@ export default function CustomActions(props) {
         switch (buttonIndex) {
           case 0:
             console.log("user wants to pick an image");
-            return;
+            return pickImage();
           case 1:
             console.log("user wants to take a photo");
-            return;
+            return takePhoto();
           case 2:
             console.log("user wants to get their location");
+            return getLoaction();
           default:
         }
       }

@@ -5,9 +5,9 @@ import {
 import {
   collection,
   onSnapshot,
-  addDoc,
   query,
   orderBy,
+  addDoc,
 } from "firebase/firestore";
 import "firebase/firestore";
 import React, {
@@ -30,13 +30,20 @@ import {
   InputToolbar,
   MessageText,
 } from "react-native-gifted-chat";
-
+import MapView from "react-native-maps";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo from "@react-native-community/netinfo";
+import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 
 import { db, auth } from "../config/firebase";
 
 import CustomActions from "./CustomActions";
+import {
+  saveMessagesInStorage,
+  getMessagesFromStorage,
+  deleteMessagesFromStorage,
+} from "../asyncStorage";
+import PropTypes from "prop-types";
 
 const referenceChatmessages = collection(db, "messages");
 
@@ -44,7 +51,7 @@ export default function Chat(props) {
   const [messages, setMessages] = useState([]); // state holding messages
   const [uid, setUid] = useState(""); // state holding uid
   const [isOnline, setIsOnline] = useState(false); // state holding online status
-
+  const [loginText, setLoginText] = useState(""); // state holding logintext
   const [loggedinText, setLoggedinText] = useState(
     "Please wait. You're being authenticated"
   );
@@ -62,12 +69,14 @@ export default function Chat(props) {
       // if (!connection.isConnected) {
       if (!isOnline) {
         console.log("offline!");
+        setLoginText("You are currently offline");
         // Messages loaded from AsyncStorage
         getMessagesFromStorage().then((messageArray) =>
           setMessages(messageArray)
         );
       } else {
         console.log("online");
+        setLoginText("");
 
         const authUnsubscribe = onAuthStateChanged(
           auth,
@@ -93,13 +102,22 @@ export default function Chat(props) {
               "Collection loaded from Firebase",
               querySnapshot.docs.length
             );
+            console.log(querySnapshot.docs[0].data);
             setMessages(
-              querySnapshot.docs.map((doc) => ({
-                _id: doc.data()._id,
-                text: doc.data().text,
-                createdAt: doc.data().createdAt.toDate(),
-                user: doc.data().user,
-              }))
+              querySnapshot.docs.map((doc) => {
+                let data = doc.data();
+                return {
+                  _id: data._id,
+                  text: data.text,
+                  createdAt: data.createdAt.toDate(),
+                  user: {
+                    _id: data.user._id,
+                    name: data.user.name,
+                  },
+                  image: data.image || null,
+                  location: data.location || null,
+                };
+              })
             );
           }
         );
@@ -113,28 +131,30 @@ export default function Chat(props) {
     });
   }, [isOnline]);
 
-  useEffect((props) => {
-    setMessages([
-      {
-        _id: uuidv4(),
-        text: `${name} entered the chat.`,
-        createdAt: new Date(),
-        system: true,
-      },
-    ]);
-  }, []);
+  // useEffect((props) => {
+  //   setMessages([
+  //     {
+  //       _id: uuidv4(),
+  //       text: `${name} entered the chat.`,
+  //       createdAt: new Date(),
+  //       system: true,
+  //     },
+  //   ]);
+  // }, []);
 
   //add last message sent to the Firestore collection "messages"
   const addMessage = (message) => {
-    const { text } = message;
-
-    if (!text) {
-      return;
-    }
-
-    console.log("Message", message);
     try {
-      addDoc(referenceChatmessages, message);
+      addDoc(referenceChatmessages, {
+        uid: uid,
+        _id: message._id,
+        createdAt: message.createdAt,
+        text: message.text || "",
+        user: message.user,
+        image: message.image || "",
+        location: message.location || null,
+      });
+      console.log("saved message to firestore", message);
     } catch (e) {
       console.error("Invalid message object", message);
       console.error("addMessage error", e);
@@ -150,7 +170,7 @@ export default function Chat(props) {
         "messages",
         JSON.stringify(messages)
       );
-      console.log("Add to Local storage", messages);
+      console.log("Save to Local storage", messages);
     } catch (error) {
       console.error(
         "save messages to Storage error",
@@ -175,7 +195,10 @@ export default function Chat(props) {
 
       return messageArray;
     } catch (error) {
-      console.error(error.message);
+      console.error(
+        "getMessagesFromStorage",
+        error.message
+      );
     }
   };
 
@@ -244,8 +267,13 @@ export default function Chat(props) {
     const { currentMessage } = props;
     if (currentMessage.location) {
       return (
-        <Mapview
-          style={styles.map}
+        <MapView
+          style={{
+            width: 150,
+            height: 100,
+            borderRadius: 13,
+            margin: 3,
+          }}
           region={{
             latitude: currentMessage.location.latitude,
             longitude: currentMessage.location.longitude,
@@ -264,6 +292,9 @@ export default function Chat(props) {
         styles.container,
         { backgroundColor: color },
       ]}>
+      {!isOnline && (
+        <Text style={styles.login}>{loginText}</Text>
+      )}
       <GiftedChat
         renderCustomView={renderCustomView}
         renderActions={renderCustomActions}
@@ -287,6 +318,16 @@ export default function Chat(props) {
   );
 }
 
+Chat.propTypes = {
+  messages: PropTypes.array,
+  onSend: PropTypes.func,
+  user: PropTypes.object,
+  renderBubble: PropTypes.func,
+  renderInputToolbar: PropTypes.func,
+  renderActions: PropTypes.func,
+  renderCustomView: PropTypes.func,
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -301,8 +342,12 @@ const styles = StyleSheet.create({
   },
   map: {
     width: 150,
-    heigth: 100,
+    height: 100,
     borderRadius: 13,
     margin: 3,
+  },
+  login: {
+    textAlign: "center",
+    paddingTop: 10,
   },
 });
