@@ -36,6 +36,8 @@ import NetInfo from "@react-native-community/netinfo";
 
 import { db, auth } from "../config/firebase";
 
+import CustomActions from "./CustomActions";
+
 const referenceChatmessages = collection(db, "messages");
 
 export default function Chat(props) {
@@ -54,7 +56,7 @@ export default function Chat(props) {
   useEffect(() => {
     // Get the network state once, at the first initialization
     NetInfo.fetch().then((connection) => {
-      // setIsOnline(connection.isConnected);
+      setIsOnline(connection.isConnected);
       console.log("NatInfo: ", isOnline);
 
       // if (!connection.isConnected) {
@@ -76,7 +78,7 @@ export default function Chat(props) {
             setLoggedinText(`${name} is logged in`);
             // update user state with user data
             setUid(user.uid);
-            console.log(user.uid);
+            console.log("authUnsubscribe", user.uid);
           }
         );
 
@@ -234,6 +236,28 @@ export default function Chat(props) {
     }
   };
 
+  const renderCustomActions = (props) => {
+    return <CustomActions {...props} />;
+  };
+
+  const renderCustomView = (props) => {
+    const { currentMessage } = props;
+    if (currentMessage.location) {
+      return (
+        <Mapview
+          style={styles.map}
+          region={{
+            latitude: currentMessage.location.latitude,
+            longitude: currentMessage.location.longitude,
+            latitudeDelta: 0.0922,
+            longitudeDelta: 0.0421,
+          }}
+        />
+      );
+    }
+    return null;
+  };
+
   return (
     <View
       style={[
@@ -241,6 +265,8 @@ export default function Chat(props) {
         { backgroundColor: color },
       ]}>
       <GiftedChat
+        renderCustomView={renderCustomView}
+        renderActions={renderCustomActions}
         renderInputToolbar={renderInputToolbar}
         renderBubble={renderBubble}
         showAvatarForEveryMessage={true}
@@ -272,5 +298,11 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "600",
     fontSize: 20,
+  },
+  map: {
+    width: 150,
+    heigth: 100,
+    borderRadius: 13,
+    margin: 3,
   },
 });
