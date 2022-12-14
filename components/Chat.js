@@ -6,6 +6,7 @@ import {
   collection,
   onSnapshot,
   query,
+  where,
   orderBy,
   addDoc,
 } from "firebase/firestore";
@@ -31,9 +32,7 @@ import {
   MessageText,
 } from "react-native-gifted-chat";
 import MapView from "react-native-maps";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo from "@react-native-community/netinfo";
-import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 
 import { db, auth } from "../config/firebase";
 
@@ -45,102 +44,124 @@ import {
 } from "../asyncStorage";
 import PropTypes from "prop-types";
 
-const referenceChatmessages = collection(db, "messages");
-
 export default function Chat(props) {
   const [messages, setMessages] = useState([]); // state holding messages
   const [uid, setUid] = useState(""); // state holding uid
+  const [user, setUser] = useState({
+    _id: "",
+    name: "",
+    avatar: "",
+  });
   const [isOnline, setIsOnline] = useState(false); // state holding online status
   const [loginText, setLoginText] = useState(""); // state holding logintext
-  const [loggedinText, setLoggedinText] = useState(
-    "Please wait. You're being authenticated"
-  );
 
   /* Receive props name and color from the Start Screen*/
   const { color, name } = props.route.params;
+  // reference to read all the documents in the "messages" collection
+  const referenceChatmessages = collection(db, "messages");
+  const referenceUserMessages = query(
+    referenceChatmessages,
+    where("uid", "==", uid)
+  );
 
-  // Get messages from the firestore collection (onSnapshot) and update state
+  //Get the network state once, at the first initialization
   useEffect(() => {
-    // Get the network state once, at the first initialization
-    NetInfo.fetch().then((connection) => {
-      setIsOnline(connection.isConnected);
-      console.log("NatInfo: ", isOnline);
-
-      // if (!connection.isConnected) {
-      if (!isOnline) {
-        console.log("offline!");
-        setLoginText("You are currently offline");
-        // Messages loaded from AsyncStorage
-        getMessagesFromStorage().then((messageArray) =>
-          setMessages(messageArray)
-        );
-      } else {
-        console.log("online");
-        setLoginText("");
-
-        const authUnsubscribe = onAuthStateChanged(
-          auth,
-          async (user) => {
-            if (!user) {
-              await signInAnonymously(auth);
-            }
-            setLoggedinText(`${name} is logged in`);
-            // update user state with user data
-            setUid(user.uid);
-            console.log("authUnsubscribe", user.uid);
-          }
-        );
-
-        const q = query(
-          referenceChatmessages,
-          orderBy("createdAt", "desc")
-        );
-        const unsubscribeMessage = onSnapshot(
-          q,
-          (querySnapshot) => {
-            console.log(
-              "Collection loaded from Firebase",
-              querySnapshot.docs.length
-            );
-            console.log(querySnapshot.docs[0].data);
-            setMessages(
-              querySnapshot.docs.map((doc) => {
-                let data = doc.data();
-                return {
-                  _id: data._id,
-                  text: data.text,
-                  createdAt: data.createdAt.toDate(),
-                  user: {
-                    _id: data.user._id,
-                    name: data.user.name,
-                  },
-                  image: data.image || null,
-                  location: data.location || null,
-                };
-              })
-            );
-          }
-        );
-
-        return () => {
-          // NetInfoUnsubscribe();
-          unsubscribeMessage();
-          authUnsubscribe();
-        };
-      }
+    NetInfo.fetch().then((connectionStatus) => {
+      setIsOnline(connectionStatus.isConnected);
     });
+
+    // Subscribe to network changes
+    const unsubscribeNetInfo = NetInfo.addEventListener(
+      (connectionStatus) => {
+        setIsOnline(connectionStatus.isConnected);
+      }
+    );
+    // Cleanup on onmount
+    return () => {
+      unsubscribeNetInfo();
+    };
+  }, []);
+
+  //IF USER IS ONLINE, get messages from firestore, if user offline get messages from cache using async storage
+  useEffect(() => {
+    if (isOnline) {
+      // console.log("online");
+
+      // Authenticate user anonymously using Firebase
+      // listens to authentication changes
+      const authUnsubscribe = onAuthStateChanged(
+        auth,
+        async (user) => {
+          if (!user) {
+            await signInAnonymously(auth);
+          }
+
+          // update user state with user data
+          setUid(user.uid);
+          setUser({
+            _id: uid,
+            name: name,
+            avatar: "https://placeimg.com/140/140/any",
+          });
+        }
+      );
+
+      // once the user is authenticated the onSnapshot() creates an updated snapshot of the collection
+      // the onCollectionUpdate writes the chat messages to state messages
+      const q = query(
+        referenceChatmessages,
+        orderBy("createdAt", "desc")
+      );
+      const unsubscribeMessage = onSnapshot(
+        q,
+        onCollectionUpdate
+      );
+      return () => {
+        unsubscribeMessage();
+        authUnsubscribe();
+      };
+    }
+    // if user is offline get messages from storage (AsyncStorage)
+    else {
+      setLoginText("You are currently offline");
+      // console.log("Offline");
+      getMessagesFromStorage().then((messageArray) =>
+        setMessages(messageArray)
+      );
+    }
   }, [isOnline]);
 
-  // useEffect((props) => {
-  //   setMessages([
-  //     {
-  //       _id: uuidv4(),
-  //       text: `${name} entered the chat.`,
-  //       createdAt: new Date(),
-  //       system: true,
-  //     },
-  //   ]);
-  // }, []);
+  // save Messages in Storage when messages [state] is updated
+  useEffect(() => {
+    console.log("useEffect saveMessage");
+    saveMessagesInStorage(messages);
+  }, [messages]);
+
+  // the onCollectionUpdate writes the chat messages to state messages
+  // Whenever something changes in the messages collection (and, thus, when onSnapshot() is fired), this function needs to be called, like this onCollectionUpdate() function.
+  // This function needs to retrieve the current data in the messages collection and store it in the state lists, allowing that data to be rendered in the view
+  const onCollectionUpdate = (querySnapshot) => {
+    console.log(
+      "Collection loaded from Firebase",
+      querySnapshot.docs.length
+    );
+    setMessages(
+      querySnapshot.docs.map((doc) => {
+        let data = doc.data();
+        return {
+          _id: data._id,
+          text: data.text,
+          createdAt: data.createdAt.toDate(),
+          user: {
+            _id: data.user._id,
+            name: data.user.name,
+          },
+          image: data.image || null,
+          location: data.location || null,
+        };
+      })
+    );
+  };
 
   //add last message sent to the Firestore collection "messages"
   const addMessage = (message) => {
@@ -154,77 +175,22 @@ export default function Chat(props) {
         image: message.image || "",
         location: message.location || null,
       });
-      console.log("saved message to firestore", message);
+      // console.log("saved message to firestore", message);
     } catch (e) {
-      console.error("Invalid message object", message);
       console.error("addMessage error", e);
     }
   };
 
-  // ASYNCSTORAGE
-
-  // save messages in AsyncStorage
-  const saveMessagesInStorage = async () => {
-    try {
-      await AsyncStorage.setItem(
-        "messages",
-        JSON.stringify(messages)
-      );
-      console.log("Save to Local storage", messages);
-    } catch (error) {
-      console.error(
-        "save messages to Storage error",
-        error.message
-      );
-    }
-  };
-
-  // fetch messages from AsyncStorage
-  const getMessagesFromStorage = async () => {
-    console.log(
-      "AsyncStorage | Load messages from Storage"
-    );
-    try {
-      const messageString =
-        (await AsyncStorage.getItem("messages")) || [];
-      const messageArray = JSON.parse(messageString) || [];
-
-      console.log(
-        `AsyncStorage | ${messageArray.length} messages restored`
-      );
-
-      return messageArray;
-    } catch (error) {
-      console.error(
-        "getMessagesFromStorage",
-        error.message
-      );
-    }
-  };
-
-  // delete Messages from AsyncStorage
-  const deleteMessagesFromStorage = async () => {
-    try {
-      await AsyncStorage.removeItem("messages");
-    } catch (error) {
-      console.error(
-        "delete messages form storage error",
-        error.message
-      );
-    }
-  };
-
   //Append new messages to the State and add to firestore collection (addMessage) and asyncStorage (saveMessages)
-  const onSend = useCallback((messages = []) => {
+  const onSend = useCallback((newMessage = []) => {
     setMessages((prevMessages) =>
-      GiftedChat.append(prevMessages, messages)
+      GiftedChat.append(prevMessages, newMessage)
     );
-    // save messages to AsyncStorage
-    saveMessagesInStorage();
     //Last message appended to collection
-    addMessage(messages[0]);
+    addMessage(newMessage[0]);
   }, []);
 
+  //customize the render bubble
   const renderBubble = (props) => {
     return (
       <Bubble
@@ -251,6 +217,7 @@ export default function Chat(props) {
     );
   };
 
+  // renders the chat input field toolbar only when user is online
   const renderInputToolbar = (props) => {
     if (!isOnline) {
       return null;
@@ -259,10 +226,12 @@ export default function Chat(props) {
     }
   };
 
+  // action button to access communication features via an action sheet
   const renderCustomActions = (props) => {
     return <CustomActions {...props} />;
   };
 
+  // renders a mapview when user adds a location to current message
   const renderCustomView = (props) => {
     const { currentMessage } = props;
     if (currentMessage.location) {
@@ -303,11 +272,7 @@ export default function Chat(props) {
         showAvatarForEveryMessage={true}
         messages={messages}
         onSend={(messages) => onSend(messages)}
-        user={{
-          _id: uid,
-          name: name,
-          avatar: "https://placeimg.com/140/140/any",
-        }}
+        user={user}
       />
 
       {/*Ternary solves issue on older Android phones, that message field hides, when user types on keyboard */}
@@ -333,13 +298,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "black",
   },
-  text: {
-    textAlign: "center",
-    marginTop: 40,
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 20,
-  },
+
   map: {
     width: 150,
     height: 100,

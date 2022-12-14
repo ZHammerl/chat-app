@@ -7,12 +7,14 @@ export const saveMessagesInStorage = async (messages) => {
       "messages",
       JSON.stringify(messages)
     );
-    console.log("Add to Local storage", messages);
   } catch (error) {
-    console.error(
-      "save messages to Storage error",
-      error.message
-    );
+    console.log("haha");
+    // console.error("saveMessage", messages + error.message);
+    // console.error(
+    //   "save messages to Storage",
+    //   error.message,
+    //   messages
+    // );
   }
 };
 
