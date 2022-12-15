@@ -7,14 +7,9 @@ export const saveMessagesInStorage = async (messages) => {
       "messages",
       JSON.stringify(messages)
     );
+    console.log("saveInStorage", messages);
   } catch (error) {
-    console.log("haha");
-    // console.error("saveMessage", messages + error.message);
-    // console.error(
-    //   "save messages to Storage",
-    //   error.message,
-    //   messages
-    // );
+    console.error("saveMessagesInStorage", error.message);
   }
 };
 
@@ -29,7 +24,7 @@ export const getMessagesFromStorage = async () => {
     console.log(
       `AsyncStorage | ${messageArray.length} messages restored`
     );
-
+    console.log("Asyncstorage", messageArray);
     return messageArray;
   } catch (error) {
     console.error(error.message);

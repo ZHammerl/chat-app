@@ -87,7 +87,9 @@ export default function CustomActions(props) {
         );
         // if action is not cancelled, upload and send image
         if (!result.canceled) {
-          const imgUrl = await uploadImage(result.uri);
+          const imgUrl = await uploadImage(
+            result.assets[0].uri
+          );
           props.onSend({ image: imgUrl });
         }
       }

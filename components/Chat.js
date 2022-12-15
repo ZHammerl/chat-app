@@ -97,9 +97,9 @@ export default function Chat(props) {
           }
 
           // update user state with user data
-          setUid(user.uid);
+          setUid(user?.uid);
           setUser({
-            _id: uid,
+            _id: user.uid,
             name: name,
             avatar: "https://placeimg.com/140/140/any",
           });
@@ -133,7 +133,6 @@ export default function Chat(props) {
 
   // save Messages in Storage when messages [state] is updated
   useEffect(() => {
-    console.log("useEffect saveMessage");
     saveMessagesInStorage(messages);
   }, [messages]);
 
@@ -175,7 +174,6 @@ export default function Chat(props) {
         image: message.image || "",
         location: message.location || null,
       });
-      // console.log("saved message to firestore", message);
     } catch (e) {
       console.error("addMessage error", e);
     }
@@ -188,6 +186,7 @@ export default function Chat(props) {
     );
     //Last message appended to collection
     addMessage(newMessage[0]);
+    console.log("onSend User", user);
   }, []);
 
   //customize the render bubble
@@ -271,7 +270,7 @@ export default function Chat(props) {
         renderBubble={renderBubble}
         showAvatarForEveryMessage={true}
         messages={messages}
-        onSend={(messages) => onSend(messages)}
+        onSend={(message) => onSend(message)}
         user={user}
       />
 
@@ -298,7 +297,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "black",
   },
-
   map: {
     width: 150,
     height: 100,
